@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>向量空间探索器 - Vector Space Explorer</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 25%, #16213e 50%, #0f3460 100%);
+            color: #ffffff;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 背景装饰效果 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.12) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(120, 219, 255, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        #container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+            z-index: 2;
+        }
+
+        #scene-container {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(ellipse at center, rgba(26, 39, 71, 0.8) 0%, rgba(15, 20, 25, 0.9) 100%);
+            border-radius: 0 0 0 24px;
+            overflow: hidden;
+        }
+
+        #control-panel {
+            width: 380px;
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px 0 0 0;
+            padding: 24px;
+            overflow-y: auto;
+            box-shadow: 
+                -10px 0 40px rgba(0, 0, 0, 0.3),
+                inset 1px 0 0 rgba(255, 255, 255, 0.05);
+        }
+
+        /* 自定义滚动条 */
+        #control-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #control-panel::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+
+        #control-panel::-webkit-scrollbar-thumb {
+            background: rgba(100, 181, 246, 0.3);
+            border-radius: 3px;
+        }
+
+        #control-panel::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 181, 246, 0.5);
+        }
+
+        .panel-header {
+            margin-bottom: 32px;
+            text-align: center;
+            padding-bottom: 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .panel-header h2 {
+            font-size: 1.75em;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #64b5f6 0%, #42a5f5 50%, #1e88e5 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.02em;
+        }
+
+        .mode-switch {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 6px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .mode-btn {
+            padding: 10px 20px;
+            border: none;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.7);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 0.95em;
+            font-weight: 500;
+            font-family: inherit;
+            position: relative;
+        }
+
+        .mode-btn:hover {
+            color: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #64b5f6 0%, #42a5f5 100%);
+            color: #ffffff;
+            box-shadow: 
+                0 4px 20px rgba(66, 165, 245, 0.4),
+                0 2px 8px rgba(66, 165, 245, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .control-section {
+            margin-bottom: 28px;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .control-section:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-section h3 {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #64b5f6;
+            padding-bottom: 12px;
+            border-bottom: 2px solid rgba(100, 181, 246, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: linear-gradient(135deg, #64b5f6, #42a5f5);
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(100, 181, 246, 0.5);
+        }
+
+        .vector-group {
+            margin-bottom: 24px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+            border-left: 3px solid #64b5f6;
+            transition: all 0.3s ease;
+        }
+
+        .vector-group:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-left-color: #42a5f5;
+            box-shadow: 0 4px 20px rgba(100, 181, 246, 0.1);
+        }
+
+        .vector-group h4 {
+            margin-bottom: 16px;
+            color: #ffffff;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .vector-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .vector-inputs label {
+            display: flex;
+            flex-direction: column;
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
+        }
+
+        .vector-inputs input {
+            margin-top: 6px;
+            padding: 10px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-family: inherit;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .vector-inputs input:focus {
+            outline: none;
+            border-color: #64b5f6;
+            box-shadow: 
+                0 0 0 3px rgba(100, 181, 246, 0.15),
+                0 4px 12px rgba(100, 181, 246, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .vector-color {
+            margin-top: 12px;
+        }
+
+        .vector-color label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
+        }
+
+        .vector-color input[type="color"] {
+            width: 48px;
+            height: 32px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .vector-color input[type="color"]:hover {
+            border-color: #64b5f6;
+            transform: scale(1.05);
+        }
+
+        .operation-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .op-btn, .geo-btn {
+            padding: 14px 18px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.03);
+            color: #ffffff;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 0.95em;
+            font-weight: 500;
+            font-family: inherit;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .op-btn::before, .geo-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .op-btn:hover, .geo-btn:hover {
+            background: rgba(100, 181, 246, 0.15);
+            border-color: rgba(100, 181, 246, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(100, 181, 246, 0.2);
+        }
+
+        .op-btn:hover::before, .geo-btn:hover::before {
+            left: 100%;
+        }
+
+        .op-btn.active, .geo-btn.active {
+            background: linear-gradient(135deg, #64b5f6 0%, #42a5f5 100%);
+            border-color: #42a5f5;
+            box-shadow: 
+                0 6px 20px rgba(66, 165, 245, 0.3),
+                0 2px 8px rgba(66, 165, 245, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .geometry-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .geometry-info {
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+        }
+
+        .info-item {
+            margin-bottom: 12px;
+            font-size: 0.95em;
+            color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .info-item span:last-child {
+            color: #64b5f6;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        .display-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .display-options label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95em;
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .display-options label:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .display-options input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #64b5f6;
+            border-radius: 4px;
+        }
+
+        .reset-btn {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid #ff5722;
+            background: rgba(255, 87, 34, 0.1);
+            color: #ff5722;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 1.05em;
+            font-weight: 600;
+            font-family: inherit;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .reset-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 87, 34, 0.2), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .reset-btn:hover {
+            background: rgba(255, 87, 34, 0.2);
+            transform: translateY(-3px);
+            box-shadow: 
+                0 10px 30px rgba(255, 87, 34, 0.3),
+                0 4px 12px rgba(255, 87, 34, 0.2);
+        }
+
+        .reset-btn:hover::before {
+            left: 100%;
+        }
+
+        .scalar-control {
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+        }
+
+        .scalar-control label {
+            display: block;
+            margin-bottom: 12px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.95em;
+            font-weight: 500;
+        }
+
+        .scalar-control input, .scalar-control select {
+            padding: 10px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            border-radius: 8px;
+            margin-left: 10px;
+            font-size: 0.95em;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        .scalar-control input:focus, .scalar-control select:focus {
+            outline: none;
+            border-color: #64b5f6;
+            box-shadow: 0 0 0 3px rgba(100, 181, 246, 0.15);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 1024px) {
+            #control-panel {
+                width: 320px;
+                padding: 20px;
+            }
+            
+            .panel-header h2 {
+                font-size: 1.5em;
+            }
+            
+            .geometry-controls {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            #container {
+                flex-direction: column;
+            }
+            
+            #control-panel {
+                width: 100%;
+                max-height: 40vh;
+                border-radius: 24px 24px 0 0;
+                border-left: none;
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+            }
+            
+            #scene-container {
+                border-radius: 0;
+            }
+            
+            .vector-inputs {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            
+            .display-options {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 加载动画 */
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 提升性能的优化 */
+        .control-section,
+        .vector-group,
+        .op-btn,
+        .geo-btn {
+            will-change: transform;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <!-- 3D场景容器 -->
+        <div id="scene-container"></div>
+        
+        <!-- 控制面板 -->
+        <div id="control-panel" class="fade-in">
+            <div class="panel-header">
+                <h2>向量空间探索器</h2>
+                <div class="mode-switch">
+                    <button id="mode-2d" class="mode-btn">2D</button>
+                    <button id="mode-3d" class="mode-btn active">3D</button>
+                </div>
+            </div>
+            
+            <!-- 向量控制 -->
+            <div class="control-section">
+                <h3>向量控制</h3>
+                <div class="vector-controls">
+                    <div class="vector-group">
+                        <h4>向量 A</h4>
+                        <div class="vector-inputs">
+                            <label>X: <input type="number" id="vectorA-x" value="3" step="0.1"></label>
+                            <label>Y: <input type="number" id="vectorA-y" value="2" step="0.1"></label>
+                            <label>Z: <input type="number" id="vectorA-z" value="1" step="0.1"></label>
+                        </div>
+                        <div class="vector-color">
+                            <label>颜色: <input type="color" id="vectorA-color" value="#ff0000"></label>
+                        </div>
+                    </div>
+                    
+                    <div class="vector-group">
+                        <h4>向量 B</h4>
+                        <div class="vector-inputs">
+                            <label>X: <input type="number" id="vectorB-x" value="1" step="0.1"></label>
+                            <label>Y: <input type="number" id="vectorB-y" value="3" step="0.1"></label>
+                            <label>Z: <input type="number" id="vectorB-z" value="2" step="0.1"></label>
+                        </div>
+                        <div class="vector-color">
+                            <label>颜色: <input type="color" id="vectorB-color" value="#00ff00"></label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 运算控制 -->
+            <div class="control-section">
+                <h3>向量运算</h3>
+                <div class="operation-controls">
+                    <div class="operation-buttons">
+                        <button id="show-addition" class="op-btn">显示加法 (A + B)</button>
+                        <button id="show-subtraction" class="op-btn">显示减法 (A - B)</button>
+                        <button id="show-scalar" class="op-btn">标量乘法</button>
+                    </div>
+                    
+                    <div class="scalar-control" style="display: none;">
+                        <label>标量值: <input type="number" id="scalar-value" value="2" step="0.1"></label>
+                        <select id="scalar-vector">
+                            <option value="A">向量 A</option>
+                            <option value="B">向量 B</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 几何运算 -->
+            <div class="control-section">
+                <h3>几何运算</h3>
+                <div class="geometry-controls">
+                    <button id="show-dot-product" class="geo-btn">点积可视化</button>
+                    <button id="show-cross-product" class="geo-btn">叉积可视化</button>
+                    <button id="show-projection" class="geo-btn">投影可视化</button>
+                    <button id="show-angle" class="geo-btn">夹角显示</button>
+                </div>
+                
+                <div class="geometry-info">
+                    <div id="dot-product-info" class="info-item">
+                        <span>点积 A·B = </span><span id="dot-product-value">0</span>
+                    </div>
+                    <div id="angle-info" class="info-item">
+                        <span>夹角 θ = </span><span id="angle-value">0</span><span>°</span>
+                    </div>
+                    <div id="magnitude-info" class="info-item">
+                        <span>|A| = </span><span id="magnitude-a">0</span><br>
+                        <span>|B| = </span><span id="magnitude-b">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 显示选项 -->
+            <div class="control-section">
+                <h3>显示选项</h3>
+                <div class="display-options">
+                    <label><input type="checkbox" id="show-grid" checked> 显示网格</label>
+                    <label><input type="checkbox" id="show-axes" checked> 显示坐标轴</label>
+                    <label><input type="checkbox" id="show-origin" checked> 显示原点</label>
+                    <label><input type="checkbox" id="show-labels" checked> 显示标签</label>
+                </div>
+            </div>
+            
+            <!-- 重置按钮 -->
+            <div class="control-section">
+                <button id="reset-scene" class="reset-btn">重置场景</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 使用稳定的Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r132/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    
+    <script>
+        // 完整的向量空间探索器
+        class VectorSpaceExplorer {
+            constructor() {
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.controls = null;
+                
+                // 向量对象
+                this.vectors = {
+                    A: { object: null, value: new THREE.Vector3(3, 2, 1) },
+                    B: { object: null, value: new THREE.Vector3(1, 3, 2) }
+                };
+                
+                // 运算结果向量
+                this.resultVectors = {};
+                
+                // 辅助对象
+                this.helpers = {};
+                
+                // 标签对象
+                this.labels = [];
+                
+                // 模式状态
+                this.is3D = true;
+                this.activeOperations = new Set();
+                
+                this.init();
+                this.setupEventListeners();
+                this.animate();
+            }
+            
+            init() {
+                const container = document.getElementById('scene-container');
+                
+                // 创建场景
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x0a0a0a);
+                
+                // 创建相机
+                this.camera = new THREE.PerspectiveCamera(
+                    75,
+                    container.clientWidth / container.clientHeight,
+                    0.1,
+                    1000
+                );
+                this.camera.position.set(8, 6, 8);
+                this.camera.lookAt(0, 0, 0);
+                
+                // 创建渲染器
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                this.renderer.setSize(container.clientWidth, container.clientHeight);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                container.appendChild(this.renderer.domElement);
+                
+                // 创建控制器
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                this.controls.maxDistance = 50;
+                this.controls.minDistance = 2;
+                
+                // 添加灯光
+                this.setupLighting();
+                
+                // 创建辅助对象
+                this.createHelpers();
+                
+                // 创建初始向量
+                this.createVectors();
+                
+                // 更新显示
+                this.updateVectorCalculations();
+                
+                // 处理窗口大小变化
+                window.addEventListener('resize', () => this.onWindowResize());
+            }
+            
+            setupLighting() {
+                // 环境光
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                this.scene.add(ambientLight);
+                
+                // 定向光
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(10, 10, 5);
+                directionalLight.castShadow = true;
+                this.scene.add(directionalLight);
+                
+                // 点光源
+                const pointLight = new THREE.PointLight(0x64b5f6, 0.5, 100);
+                pointLight.position.set(-10, 10, -10);
+                this.scene.add(pointLight);
+            }
+            
+            createHelpers() {
+                // 创建网格
+                this.helpers.grid = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
+                this.scene.add(this.helpers.grid);
+                
+                // 创建坐标轴
+                this.helpers.axes = new THREE.AxesHelper(10);
+                this.scene.add(this.helpers.axes);
+                
+                // 创建原点球体
+                const originGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+                const originMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xffffff,
+                    emissive: 0x333333 
+                });
+                this.helpers.origin = new THREE.Mesh(originGeometry, originMaterial);
+                this.scene.add(this.helpers.origin);
+            }
+            
+            createVectors() {
+                // 创建向量A
+                this.createVector('A', this.vectors.A.value, 0xff0000);
+                
+                // 创建向量B
+                this.createVector('B', this.vectors.B.value, 0x00ff00);
+            }
+            
+            createVector(name, vector, color) {
+                // 移除现有向量
+                if (this.vectors[name].object) {
+                    this.scene.remove(this.vectors[name].object);
+                }
+                
+                // 创建向量箭头
+                const direction = vector.clone().normalize();
+                const length = vector.length();
+                const origin = new THREE.Vector3(0, 0, 0);
+                
+                const arrowHelper = new THREE.ArrowHelper(direction, origin, length, color, length * 0.2, length * 0.1);
+                arrowHelper.name = `vector${name}`;
+                
+                this.vectors[name].object = arrowHelper;
+                this.scene.add(arrowHelper);
+                
+                // 创建标签
+                this.createVectorLabel(name, vector, color);
+            }
+            
+            createVectorLabel(name, vector, color) {
+                // 移除现有标签
+                this.removeLabel(name);
+                
+                // 创建文本标签
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = 256;
+                canvas.height = 128;
+                
+                context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+                context.font = '32px Arial';
+                context.textAlign = 'center';
+                context.fillText(`${name}(${vector.x.toFixed(1)}, ${vector.y.toFixed(1)}, ${vector.z.toFixed(1)})`, 
+                                128, 64);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+                const sprite = new THREE.Sprite(spriteMaterial);
+                
+                // 设置标签位置
+                const labelPosition = vector.clone().multiplyScalar(1.2);
+                sprite.position.copy(labelPosition);
+                sprite.scale.set(2, 1, 1);
+                sprite.name = `label${name}`;
+                
+                this.scene.add(sprite);
+                this.labels.push(sprite);
+            }
+            
+            removeLabel(name) {
+                const labelToRemove = this.scene.getObjectByName(`label${name}`);
+                if (labelToRemove) {
+                    this.scene.remove(labelToRemove);
+                    this.labels = this.labels.filter(label => label !== labelToRemove);
+                }
+            }
+            
+            updateVector(name, x, y, z) {
+                const vector = new THREE.Vector3(x, y, z);
+                this.vectors[name].value = vector;
+                
+                const color = name === 'A' ? 0xff0000 : 0x00ff00;
+                this.createVector(name, vector, color);
+                
+                this.updateVectorCalculations();
+                this.updateActiveOperations();
+            }
+            
+            updateVectorCalculations() {
+                const vectorA = this.vectors.A.value;
+                const vectorB = this.vectors.B.value;
+                
+                // 计算点积
+                const dotProduct = vectorA.dot(vectorB);
+                document.getElementById('dot-product-value').textContent = dotProduct.toFixed(3);
+                
+                // 计算夹角
+                const cosAngle = dotProduct / (vectorA.length() * vectorB.length());
+                const angle = Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI);
+                document.getElementById('angle-value').textContent = angle.toFixed(1);
+                
+                // 计算向量模长
+                document.getElementById('magnitude-a').textContent = vectorA.length().toFixed(3);
+                document.getElementById('magnitude-b').textContent = vectorB.length().toFixed(3);
+            }
+            
+            showVectorAddition() {
+                this.clearResultVectors();
+                
+                const vectorA = this.vectors.A.value;
+                const vectorB = this.vectors.B.value;
+                const result = vectorA.clone().add(vectorB);
+                
+                // 创建结果向量
+                const direction = result.clone().normalize();
+                const length = result.length();
+                const arrowHelper = new THREE.ArrowHelper(direction, new THREE.Vector3(0, 0, 0), 
+                                                         length, 0xffff00, length * 0.2, length * 0.1);
+                arrowHelper.name = 'additionResult';
+                
+                this.resultVectors.addition = arrowHelper;
+                this.scene.add(arrowHelper);
+                
+                // 创建向量平行四边形
+                this.createParallelogram(vectorA, vectorB);
+                
+                // 创建结果标签
+                this.createResultLabel('A+B', result, 0xffff00);
+                
+                this.activeOperations.add('addition');
+            }
+            
+            showVectorSubtraction() {
+                this.clearResultVectors();
+                
+                const vectorA = this.vectors.A.value;
+                const vectorB = this.vectors.B.value;
+                const result = vectorA.clone().sub(vectorB);
+                
+                // 创建结果向量
+                const direction = result.clone().normalize();
+                const length = result.length();
+                const arrowHelper = new THREE.ArrowHelper(direction, new THREE.Vector3(0, 0, 0), 
+                                                         length, 0xff00ff, length * 0.2, length * 0.1);
+                arrowHelper.name = 'subtractionResult';
+                
+                this.resultVectors.subtraction = arrowHelper;
+                this.scene.add(arrowHelper);
+                
+                // 创建负向量B
+                const negativeB = vectorB.clone().negate();
+                const negativeBArrow = new THREE.ArrowHelper(negativeB.clone().normalize(), 
+                                                            new THREE.Vector3(0, 0, 0), 
+                                                            negativeB.length(), 0x00ffff, 
+                                                            negativeB.length() * 0.2, 
+                                                            negativeB.length() * 0.1);
+                negativeBArrow.name = 'negativeBResult';
+                this.scene.add(negativeBArrow);
+                
+                this.createResultLabel('A-B', result, 0xff00ff);
+                
+                this.activeOperations.add('subtraction');
+            }
+            
+            showScalarMultiplication() {
+                this.clearResultVectors();
+                
+                const scalarValue = parseFloat(document.getElementById('scalar-value').value) || 1;
+                const vectorName = document.getElementById('scalar-vector').value;
+                const originalVector = this.vectors[vectorName].value;
+                const result = originalVector.clone().multiplyScalar(scalarValue);
+                
+                // 创建结果向量
+                if (result.length() > 0.001) {
+                    const direction = result.clone().normalize();
+                    const length = result.length();
+                    const color = scalarValue >= 0 ? 0x00ffff : 0xff6600;
+                    
+                    const arrowHelper = new THREE.ArrowHelper(direction, new THREE.Vector3(0, 0, 0), 
+                                                             length, color, length * 0.2, length * 0.1);
+                    arrowHelper.name = 'scalarResult';
+                    
+                    this.resultVectors.scalar = arrowHelper;
+                    this.scene.add(arrowHelper);
+                    
+                    this.createResultLabel(`${scalarValue}×${vectorName}`, result, color);
+                }
+                
+                this.activeOperations.add('scalar');
+            }
+            
+            showDotProduct() {
+                const vectorA = this.vectors.A.value;
+                const vectorB = this.vectors.B.value;
+                
+                // 创建投影向量
+                const projectionLength = vectorA.dot(vectorB) / vectorB.length();
+                const projectionVector = vectorB.clone().normalize().multiplyScalar(projectionLength);
+                
+                if (Math.abs(projectionLength) > 0.001) {
+                    const projectionArrow = new THREE.ArrowHelper(
+                        projectionVector.clone().normalize(),
+                        new THREE.Vector3(0, 0, 0),
+                        Math.abs(projectionLength),
+                        projectionLength >= 0 ? 0x00ccff : 0xff6600,
+                        Math.abs(projectionLength) * 0.15,
+                        Math.abs(projectionLength) * 0.08
+                    );
+                    projectionArrow.name = 'dotProductVisualization';
+                    
+                    this.helpers.dotProductVisualization = projectionArrow;
+                    this.scene.add(projectionArrow);
+                }
+                
+                // 创建投影线
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+                    vectorA,
+                    projectionVector
+                ]);
+                const lineMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0x888888, 
+                    opacity: 0.7,
+                    transparent: true
+                });
+                const projectionLine = new THREE.Line(lineGeometry, lineMaterial);
+                projectionLine.name = 'projectionLine';
+                
+                this.helpers.projectionLine = projectionLine;
+                this.scene.add(projectionLine);
+                
+                this.activeOperations.add('dotProduct');
+            }
+            
+            showCrossProduct() {
+                const vectorA = this.vectors.A.value;
+                const vectorB = this.vectors.B.value;
+                const crossProduct = vectorA.clone().cross(vectorB);
+                
+                if (crossProduct.length() > 0.001) {
+                    // 创建叉积向量
+                    const direction = crossProduct.clone().normalize();
+                    const length = crossProduct.length();
+                    const arrowHelper = new THREE.ArrowHelper(direction, new THREE.Vector3(0, 0, 0), 
+                                                             length, 0xff9900, length * 0.2, length * 0.1);
+                    arrowHelper.name = 'crossProductResult';
+                    
+                    this.resultVectors.crossProduct = arrowHelper;
+                    this.scene.add(arrowHelper);
+                    
+                    // 创建平行四边形平面
+                    this.createCrossProductPlane(vectorA, vectorB);
+                    
+                    this.createResultLabel('A×B', crossProduct, 0xff9900);
+                }
+                
+                this.activeOperations.add('crossProduct');
+            }
+            
+            showProjection() {
+                const vectorA = this.vectors.A.value;
+                const vectorB = this.vectors.B.value;
+                
+                // A在B上的投影
+                const projectionLength = vectorA.dot(vectorB) / vectorB.lengthSq();
+                const projection = vectorB.clone().multiplyScalar(projectionLength);
+                
+                if (projection.length() > 0.001) {
+                    // 创建投影向量
+                    const projectionArrow = new THREE.ArrowHelper(
+                        projection.clone().normalize(),
+                        new THREE.Vector3(0, 0, 0),
+                        projection.length(),
+                        0x00ccff,
+                        projection.length() * 0.2,
+                        projection.length() * 0.1
+                    );
+                    projectionArrow.name = 'projectionResult';
+                    
+                    this.resultVectors.projection = projectionArrow;
+                    this.scene.add(projectionArrow);
+                    
+                    this.createResultLabel('proj_B(A)', projection, 0x00ccff);
+                }
+                
+                // 创建垂直线
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+                    vectorA,
+                    projection
+                ]);
+                const lineMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0x888888, 
+                    opacity: 0.8,
+                    transparent: true
+                });
+                const projectionLine = new THREE.Line(lineGeometry, lineMaterial);
+                projectionLine.name = 'projectionLine';
+                
+                this.helpers.projectionLine = projectionLine;
+                this.scene.add(projectionLine);
+                
+                this.activeOperations.add('projection');
+            }
+            
+            showAngle() {
+                const vectorA = this.vectors.A.value;
+                const vectorB = this.vectors.B.value;
+                
+                // 创建角度弧线
+                const dotProduct = vectorA.dot(vectorB);
+                const cosAngle = dotProduct / (vectorA.length() * vectorB.length());
+                const angle = Math.acos(Math.max(-1, Math.min(1, cosAngle)));
+                
+                if (angle > 0.01 && angle < Math.PI - 0.01) {
+                    const radius = Math.min(vectorA.length(), vectorB.length()) * 0.3;
+                    
+                    const curve = new THREE.EllipseCurve(
+                        0, 0,
+                        radius, radius,
+                        0, angle,
+                        false,
+                        0
+                    );
+                    
+                    const points = curve.getPoints(32);
+                    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                    const material = new THREE.LineBasicMaterial({ 
+                        color: 0xffff00
+                    });
+                    
+                    const angleArc = new THREE.Line(geometry, material);
+                    angleArc.name = 'angleArc';
+                    
+                    this.helpers.angleArc = angleArc;
+                    this.scene.add(angleArc);
+                }
+                
+                this.activeOperations.add('angle');
+            }
+            
+            createParallelogram(vectorA, vectorB) {
+                const points = [
+                    new THREE.Vector3(0, 0, 0),
+                    vectorA.clone(),
+                    vectorA.clone().add(vectorB),
+                    vectorB.clone(),
+                    new THREE.Vector3(0, 0, 0)
+                ];
+                
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const material = new THREE.LineBasicMaterial({ 
+                    color: 0xffff00, 
+                    opacity: 0.6,
+                    transparent: true
+                });
+                
+                const parallelogram = new THREE.Line(geometry, material);
+                parallelogram.name = 'parallelogram';
+                this.scene.add(parallelogram);
+            }
+            
+            createCrossProductPlane(vectorA, vectorB) {
+                const points = [
+                    new THREE.Vector3(0, 0, 0),
+                    vectorA.clone(),
+                    vectorA.clone().add(vectorB),
+                    vectorB.clone(),
+                    new THREE.Vector3(0, 0, 0)
+                ];
+                
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                const lineMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0xff9900
+                });
+                const planeBorder = new THREE.Line(lineGeometry, lineMaterial);
+                planeBorder.name = 'crossProductPlaneBorder';
+                this.scene.add(planeBorder);
+            }
+            
+            createResultLabel(text, vector, color) {
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = 512;
+                canvas.height = 128;
+                
+                context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+                context.font = '28px Arial';
+                context.textAlign = 'center';
+                context.fillText(`${text} = (${vector.x.toFixed(1)}, ${vector.y.toFixed(1)}, ${vector.z.toFixed(1)})`, 
+                                256, 64);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+                const sprite = new THREE.Sprite(spriteMaterial);
+                
+                const labelPosition = vector.clone().multiplyScalar(1.3);
+                sprite.position.copy(labelPosition);
+                sprite.scale.set(3, 0.75, 1);
+                sprite.name = `resultLabel${text}`;
+                
+                this.scene.add(sprite);
+                this.labels.push(sprite);
+            }
+            
+            clearResultVectors() {
+                Object.values(this.resultVectors).forEach(vector => {
+                    if (vector) {
+                        this.scene.remove(vector);
+                    }
+                });
+                
+                // 清除辅助图形
+                ['parallelogram', 'negativeBResult', 'dotProductVisualization', 
+                 'projectionLine', 'angleArc', 'crossProductPlaneBorder'].forEach(name => {
+                    const obj = this.scene.getObjectByName(name);
+                    if (obj) this.scene.remove(obj);
+                });
+                
+                // 清除结果标签
+                this.labels = this.labels.filter(label => {
+                    if (label.name && label.name.startsWith('resultLabel')) {
+                        this.scene.remove(label);
+                        return false;
+                    }
+                    return true;
+                });
+                
+                this.resultVectors = {};
+                
+                // 清除辅助对象
+                Object.keys(this.helpers).forEach(key => {
+                    if (['dotProductVisualization', 'angleArc', 'projectionLine'].includes(key)) {
+                        if (this.helpers[key]) {
+                            this.scene.remove(this.helpers[key]);
+                            this.helpers[key] = null;
+                        }
+                    }
+                });
+            }
+            
+            updateActiveOperations() {
+                this.activeOperations.forEach(operation => {
+                    switch (operation) {
+                        case 'addition':
+                            this.showVectorAddition();
+                            break;
+                        case 'subtraction':
+                            this.showVectorSubtraction();
+                            break;
+                        case 'scalar':
+                            this.showScalarMultiplication();
+                            break;
+                        case 'dotProduct':
+                            this.showDotProduct();
+                            break;
+                        case 'crossProduct':
+                            this.showCrossProduct();
+                            break;
+                        case 'projection':
+                            this.showProjection();
+                            break;
+                        case 'angle':
+                            this.showAngle();
+                            break;
+                    }
+                });
+            }
+            
+            toggleMode(is3D) {
+                this.is3D = is3D;
+                
+                if (is3D) {
+                    this.camera.position.set(8, 6, 8);
+                    this.controls.enabled = true;
+                } else {
+                    this.camera.position.set(0, 0, 10);
+                    this.camera.lookAt(0, 0, 0);
+                    this.controls.enabled = false;
+                }
+                
+                // 更新Z轴输入框
+                document.getElementById('vectorA-z').disabled = !is3D;
+                document.getElementById('vectorB-z').disabled = !is3D;
+                
+                if (!is3D) {
+                    document.getElementById('vectorA-z').value = 0;
+                    document.getElementById('vectorB-z').value = 0;
+                    this.updateVector('A', 
+                        parseFloat(document.getElementById('vectorA-x').value),
+                        parseFloat(document.getElementById('vectorA-y').value),
+                        0
+                    );
+                    this.updateVector('B', 
+                        parseFloat(document.getElementById('vectorB-x').value),
+                        parseFloat(document.getElementById('vectorB-y').value),
+                        0
+                    );
+                }
+            }
+            
+            toggleHelper(helperName, show) {
+                if (this.helpers[helperName]) {
+                    this.helpers[helperName].visible = show;
+                }
+            }
+            
+            resetScene() {
+                // 重置向量值
+                document.getElementById('vectorA-x').value = 3;
+                document.getElementById('vectorA-y').value = 2;
+                document.getElementById('vectorA-z').value = 1;
+                document.getElementById('vectorB-x').value = 1;
+                document.getElementById('vectorB-y').value = 3;
+                document.getElementById('vectorB-z').value = 2;
+                
+                // 更新向量
+                this.updateVector('A', 3, 2, 1);
+                this.updateVector('B', 1, 3, 2);
+                
+                // 清除所有可视化
+                this.clearResultVectors();
+                this.activeOperations.clear();
+                
+                // 重置按钮状态
+                document.querySelectorAll('.op-btn, .geo-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                // 隐藏标量控制
+                document.querySelector('.scalar-control').style.display = 'none';
+                
+                // 重置相机位置
+                this.camera.position.set(8, 6, 8);
+                this.camera.lookAt(0, 0, 0);
+                this.controls.reset();
+            }
+            
+            setupEventListeners() {
+                // 向量输入事件
+                ['A', 'B'].forEach(vector => {
+                    ['x', 'y', 'z'].forEach(axis => {
+                        const input = document.getElementById(`vector${vector}-${axis}`);
+                        input.addEventListener('input', () => {
+                            const x = parseFloat(document.getElementById(`vector${vector}-x`).value) || 0;
+                            const y = parseFloat(document.getElementById(`vector${vector}-y`).value) || 0;
+                            const z = parseFloat(document.getElementById(`vector${vector}-z`).value) || 0;
+                            this.updateVector(vector, x, y, z);
+                        });
+                    });
+                    
+                    // 颜色变化事件
+                    const colorInput = document.getElementById(`vector${vector}-color`);
+                    colorInput.addEventListener('change', () => {
+                        const color = parseInt(colorInput.value.substring(1), 16);
+                        const x = parseFloat(document.getElementById(`vector${vector}-x`).value) || 0;
+                        const y = parseFloat(document.getElementById(`vector${vector}-y`).value) || 0;
+                        const z = parseFloat(document.getElementById(`vector${vector}-z`).value) || 0;
+                        this.createVector(vector, new THREE.Vector3(x, y, z), color);
+                        this.updateActiveOperations();
+                    });
+                });
+                
+                // 模式切换
+                document.getElementById('mode-2d').addEventListener('click', () => {
+                    document.getElementById('mode-2d').classList.add('active');
+                    document.getElementById('mode-3d').classList.remove('active');
+                    this.toggleMode(false);
+                });
+                
+                document.getElementById('mode-3d').addEventListener('click', () => {
+                    document.getElementById('mode-3d').classList.add('active');
+                    document.getElementById('mode-2d').classList.remove('active');
+                    this.toggleMode(true);
+                });
+                
+                // 运算按钮
+                document.getElementById('show-addition').addEventListener('click', (e) => {
+                    e.target.classList.toggle('active');
+                    if (e.target.classList.contains('active')) {
+                        this.showVectorAddition();
+                    } else {
+                        this.activeOperations.delete('addition');
+                        this.clearResultVectors();
+                    }
+                });
+                
+                document.getElementById('show-subtraction').addEventListener('click', (e) => {
+                    e.target.classList.toggle('active');
+                    if (e.target.classList.contains('active')) {
+                        this.showVectorSubtraction();
+                    } else {
+                        this.activeOperations.delete('subtraction');
+                        this.clearResultVectors();
+                    }
+                });
+                
+                document.getElementById('show-scalar').addEventListener('click', (e) => {
+                    e.target.classList.toggle('active');
+                    const scalarControl = document.querySelector('.scalar-control');
+                    if (e.target.classList.contains('active')) {
+                        scalarControl.style.display = 'block';
+                        this.showScalarMultiplication();
+                    } else {
+                        scalarControl.style.display = 'none';
+                        this.activeOperations.delete('scalar');
+                        this.clearResultVectors();
+                    }
+                });
+                
+                // 标量值变化
+                document.getElementById('scalar-value').addEventListener('input', () => {
+                    if (this.activeOperations.has('scalar')) {
+                        this.showScalarMultiplication();
+                    }
+                });
+                
+                document.getElementById('scalar-vector').addEventListener('change', () => {
+                    if (this.activeOperations.has('scalar')) {
+                        this.showScalarMultiplication();
+                    }
+                });
+                
+                // 几何运算按钮
+                document.getElementById('show-dot-product').addEventListener('click', (e) => {
+                    e.target.classList.toggle('active');
+                    if (e.target.classList.contains('active')) {
+                        this.showDotProduct();
+                    } else {
+                        this.activeOperations.delete('dotProduct');
+                        this.clearResultVectors();
+                    }
+                });
+                
+                document.getElementById('show-cross-product').addEventListener('click', (e) => {
+                    e.target.classList.toggle('active');
+                    if (e.target.classList.contains('active')) {
+                        this.showCrossProduct();
+                    } else {
+                        this.activeOperations.delete('crossProduct');
+                        this.clearResultVectors();
+                    }
+                });
+                
+                document.getElementById('show-projection').addEventListener('click', (e) => {
+                    e.target.classList.toggle('active');
+                    if (e.target.classList.contains('active')) {
+                        this.showProjection();
+                    } else {
+                        this.activeOperations.delete('projection');
+                        this.clearResultVectors();
+                    }
+                });
+                
+                document.getElementById('show-angle').addEventListener('click', (e) => {
+                    e.target.classList.toggle('active');
+                    if (e.target.classList.contains('active')) {
+                        this.showAngle();
+                    } else {
+                        this.activeOperations.delete('angle');
+                        this.clearResultVectors();
+                    }
+                });
+                
+                // 显示选项
+                document.getElementById('show-grid').addEventListener('change', (e) => {
+                    this.toggleHelper('grid', e.target.checked);
+                });
+                
+                document.getElementById('show-axes').addEventListener('change', (e) => {
+                    this.toggleHelper('axes', e.target.checked);
+                });
+                
+                document.getElementById('show-origin').addEventListener('change', (e) => {
+                    this.toggleHelper('origin', e.target.checked);
+                });
+                
+                document.getElementById('show-labels').addEventListener('change', (e) => {
+                    this.labels.forEach(label => {
+                        label.visible = e.target.checked;
+                    });
+                });
+                
+                // 重置按钮
+                document.getElementById('reset-scene').addEventListener('click', () => {
+                    this.resetScene();
+                });
+            }
+            
+            onWindowResize() {
+                const container = document.getElementById('scene-container');
+                this.camera.aspect = container.clientWidth / container.clientHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(container.clientWidth, container.clientHeight);
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                new VectorSpaceExplorer();
+                console.log('向量空间探索器初始化成功！');
+            } catch (error) {
+                console.error('初始化失败:', error);
+                document.getElementById('scene-container').innerHTML = 
+                    '<div style="color: white; padding: 20px; text-align: center;">场景加载失败，请检查浏览器控制台错误信息</div>';
+            }
+        });
+    </script>
+</body>
+</html>
