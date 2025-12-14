@@ -625,6 +625,16 @@
             <div class="control-section">
                 <button id="reset-scene" class="reset-btn">重置场景</button>
             </div>
+
+            <!-- 系统管理 -->
+            <div class="control-section">
+                <h3>系统管理</h3>
+                <div class="system-controls" style="display: flex; gap: 10px;">
+                    <button id="export-config" class="op-btn" style="flex: 1;">导出配置(JSON)</button>
+                    <button id="import-config-btn" class="op-btn" style="flex: 1;">导入配置</button>
+                    <input type="file" id="import-config-input" accept=".json" style="display: none;">
+                </div>
+            </div>
         </div>
     </div>
     
@@ -819,7 +829,8 @@
                 const vector = new THREE.Vector3(x, y, z);
                 this.vectors[name].value = vector;
                 
-                const color = name === 'A' ? 0xff0000 : 0x00ff00;
+                const colorInput = document.getElementById(`vector${name}-color`);
+                const color = colorInput ? parseInt(colorInput.value.substring(1), 16) : (name === 'A' ? 0xff0000 : 0x00ff00);
                 this.createVector(name, vector, color);
                 
                 this.updateVectorCalculations();
@@ -1273,6 +1284,157 @@
                 this.camera.lookAt(0, 0, 0);
                 this.controls.reset();
             }
+
+            exportConfig() {
+                const config = {
+                    vectors: {
+                        A: {
+                            x: parseFloat(document.getElementById('vectorA-x').value),
+                            y: parseFloat(document.getElementById('vectorA-y').value),
+                            z: parseFloat(document.getElementById('vectorA-z').value),
+                            color: document.getElementById('vectorA-color').value
+                        },
+                        B: {
+                            x: parseFloat(document.getElementById('vectorB-x').value),
+                            y: parseFloat(document.getElementById('vectorB-y').value),
+                            z: parseFloat(document.getElementById('vectorB-z').value),
+                            color: document.getElementById('vectorB-color').value
+                        }
+                    },
+                    activeOperations: Array.from(this.activeOperations),
+                    scalar: {
+                        value: parseFloat(document.getElementById('scalar-value').value),
+                        vector: document.getElementById('scalar-vector').value
+                    },
+                    displayOptions: {
+                        grid: document.getElementById('show-grid').checked,
+                        axes: document.getElementById('show-axes').checked,
+                        origin: document.getElementById('show-origin').checked,
+                        labels: document.getElementById('show-labels').checked
+                    },
+                    camera: {
+                        position: this.camera.position.toArray(),
+                        target: this.controls.target.toArray()
+                    },
+                    is3D: this.is3D
+                };
+
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config));
+                const downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", "vector_space_config.json");
+                document.body.appendChild(downloadAnchorNode); // required for firefox
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            }
+
+            importConfig(file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const config = JSON.parse(event.target.result);
+                        this.applyConfig(config);
+                    } catch (e) {
+                        alert('导入失败：文件格式错误或内容无效');
+                        console.error(e);
+                    }
+                };
+                reader.readAsText(file);
+            }
+
+            applyConfig(config) {
+                // Validate basic structure
+                if (!config.vectors || !config.vectors.A || !config.vectors.B) {
+                    alert('导入失败：配置文件缺少必要字段');
+                    return;
+                }
+
+                // Restore Vectors
+                document.getElementById('vectorA-x').value = config.vectors.A.x;
+                document.getElementById('vectorA-y').value = config.vectors.A.y;
+                document.getElementById('vectorA-z').value = config.vectors.A.z;
+                document.getElementById('vectorA-color').value = config.vectors.A.color;
+
+                document.getElementById('vectorB-x').value = config.vectors.B.x;
+                document.getElementById('vectorB-y').value = config.vectors.B.y;
+                document.getElementById('vectorB-z').value = config.vectors.B.z;
+                document.getElementById('vectorB-color').value = config.vectors.B.color;
+
+                // Update Vectors in Scene
+                this.updateVector('A', config.vectors.A.x, config.vectors.A.y, config.vectors.A.z);
+                
+                this.updateVector('B', config.vectors.B.x, config.vectors.B.y, config.vectors.B.z);
+
+                // Restore Mode
+                if (config.is3D !== undefined) {
+                    if (config.is3D) {
+                        document.getElementById('mode-3d').click();
+                    } else {
+                        document.getElementById('mode-2d').click();
+                    }
+                }
+
+                // Restore Display Options
+                if (config.displayOptions) {
+                    document.getElementById('show-grid').checked = config.displayOptions.grid;
+                    this.toggleHelper('grid', config.displayOptions.grid);
+                    
+                    document.getElementById('show-axes').checked = config.displayOptions.axes;
+                    this.toggleHelper('axes', config.displayOptions.axes);
+                    
+                    document.getElementById('show-origin').checked = config.displayOptions.origin;
+                    this.toggleHelper('origin', config.displayOptions.origin);
+                    
+                    document.getElementById('show-labels').checked = config.displayOptions.labels;
+                    this.labels.forEach(label => label.visible = config.displayOptions.labels);
+                }
+
+                // Restore Scalar
+                if (config.scalar) {
+                    document.getElementById('scalar-value').value = config.scalar.value;
+                    document.getElementById('scalar-vector').value = config.scalar.vector;
+                }
+
+                // Restore Operations
+                // First clear existing
+                this.activeOperations.clear();
+                this.clearResultVectors();
+                document.querySelectorAll('.op-btn, .geo-btn').forEach(btn => btn.classList.remove('active'));
+                document.querySelector('.scalar-control').style.display = 'none';
+
+                if (config.activeOperations) {
+                    config.activeOperations.forEach(op => {
+                        this.activeOperations.add(op);
+                        // Activate button
+                        let btnId = '';
+                        switch(op) {
+                            case 'addition': btnId = 'show-addition'; break;
+                            case 'subtraction': btnId = 'show-subtraction'; break;
+                            case 'scalar': btnId = 'show-scalar'; break;
+                            case 'dotProduct': btnId = 'show-dot-product'; break;
+                            case 'crossProduct': btnId = 'show-cross-product'; break;
+                            case 'projection': btnId = 'show-projection'; break;
+                            case 'angle': btnId = 'show-angle'; break;
+                        }
+                        if (btnId) {
+                            const btn = document.getElementById(btnId);
+                            if (btn) btn.classList.add('active');
+                            
+                            if (op === 'scalar') {
+                                document.querySelector('.scalar-control').style.display = 'block';
+                            }
+                        }
+                    });
+                    this.updateActiveOperations();
+                }
+
+                // Restore Camera
+                if (config.camera) {
+                    this.camera.position.fromArray(config.camera.position);
+                    this.controls.target.fromArray(config.camera.target);
+                    this.controls.update();
+                }
+            }
             
             setupEventListeners() {
                 // 向量输入事件
@@ -1422,6 +1584,22 @@
                 // 重置按钮
                 document.getElementById('reset-scene').addEventListener('click', () => {
                     this.resetScene();
+                });
+
+                // 系统管理
+                document.getElementById('export-config').addEventListener('click', () => {
+                    this.exportConfig();
+                });
+
+                document.getElementById('import-config-btn').addEventListener('click', () => {
+                    document.getElementById('import-config-input').click();
+                });
+
+                document.getElementById('import-config-input').addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        this.importConfig(e.target.files[0]);
+                        e.target.value = ''; // Reset to allow same file selection
+                    }
                 });
             }
             
